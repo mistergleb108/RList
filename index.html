@@ -20,15 +20,6 @@
             <button id="addFromClipboard" class="btn btn-primary">
                 <span class="btn-icon">📋</span> Из буфера
             </button>
-            <button id="addEmpty" class="btn btn-secondary">
-                <span class="btn-icon">+</span> Новая строка
-            </button>
-            <button id="clearList" class="btn btn-danger">
-                <span class="btn-icon">×</span> Очистить
-            </button>
-            <button id="toggleDuplicates" class="btn btn-toggle">
-                <span class="btn-icon" id="toggleIconDuplicates">✓</span> Удалять дубликаты
-            </button>
         </div>
 
         <div class="list-container-wrapper">
@@ -42,23 +33,39 @@
             </div>
         </div>
 
+        <div class="secondary-controls">
+            <button id="addEmpty" class="btn btn-secondary">
+                <span class="btn-icon">+</span> Новая строка
+            </button>
+            <button id="clearList" class="btn btn-danger">
+                <span class="btn-icon">×</span> Очистить
+            </button>
+        </div>
+
         <div class="export-section">
             <div class="export-header" id="exportToggle">
                 <h3>Экспорт</h3>
                 <span class="toggle-icon" id="toggleIcon">▶</span>
             </div>
             <div class="export-content" id="exportContent">
-                <textarea id="exportTextarea" placeholder="Список для экспорта..."></textarea>
+                <textarea id="exportTextarea" placeholder="Список для экспорта..." readonly></textarea>
                 <div class="export-controls">
-                    <button id="exportBtn" class="btn btn-primary">
-                        <span class="btn-icon">↓</span> Экспорт
-                    </button>
-                    <button id="downloadBtn" class="btn btn-secondary">
-                        <span class="btn-icon">⤓</span> Скачать
+                    <button id="copyBtn" class="btn btn-primary">
+                        <span class="btn-icon">📋</span> Копировать
                     </button>
                 </div>
             </div>
         </div>
+
+        <footer>
+            <div class="footer-content">
+                <label class="duplicates-checkbox">
+                    <input type="checkbox" id="removeDuplicatesCheckbox" checked>
+                    <span class="checkmark"></span>
+                    Удалять дубликаты
+                </label>
+            </div>
+        </footer>
     </div>
 
     <div class="confirm-overlay" id="confirmOverlay">
@@ -74,6 +81,10 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <span id="notificationText"></span>
     </div>
 
     <script src="script.js"></script>

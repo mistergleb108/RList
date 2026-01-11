@@ -2,10 +2,8 @@ const itemList = document.getElementById('itemList');
 const addFromClipboardBtn = document.getElementById('addFromClipboard');
 const addEmptyBtn = document.getElementById('addEmpty');
 const clearListBtn = document.getElementById('clearList');
-const toggleDuplicatesBtn = document.getElementById('toggleDuplicates');
-const toggleIconDuplicates = document.getElementById('toggleIconDuplicates');
-const exportBtn = document.getElementById('exportBtn');
-const downloadBtn = document.getElementById('downloadBtn');
+const removeDuplicatesCheckbox = document.getElementById('removeDuplicatesCheckbox');
+const copyBtn = document.getElementById('copyBtn');
 const exportTextarea = document.getElementById('exportTextarea');
 const itemCount = document.getElementById('itemCount');
 const exportToggle = document.getElementById('exportToggle');
@@ -14,6 +12,8 @@ const exportContent = document.getElementById('exportContent');
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmClearBtn = document.getElementById('confirmClear');
 const cancelClearBtn = document.getElementById('cancelClear');
+const notification = document.getElementById('notification');
+const notificationText = document.getElementById('notificationText');
 
 const COOKIE_KEY = 'clipboardListData';
 const COOKIE_DUPLICATES_KEY = 'removeDuplicatesState';
@@ -29,7 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
     renderList();
     updateButtonsState();
     updateExportSectionState();
-    updateToggleDuplicatesButton();
 
     setTimeout(() => {
         focusLastInput();
@@ -43,7 +42,8 @@ function setupEventListeners() {
     clearListBtn.addEventListener('click', showConfirmDialog);
     confirmClearBtn.addEventListener('click', performClearList);
     cancelClearBtn.addEventListener('click', hideConfirmDialog);
-    toggleDuplicatesBtn.addEventListener('click', toggleDuplicates);
+    removeDuplicatesCheckbox.addEventListener('change', toggleDuplicates);
+    copyBtn.addEventListener('click', copyToClipboard);
 }
 
 function loadDuplicatesSetting() {
@@ -53,6 +53,7 @@ function loadDuplicatesSetting() {
         if (cookie.startsWith(`${COOKIE_DUPLICATES_KEY}=`)) {
             const value = cookie.substring(COOKIE_DUPLICATES_KEY.length + 1);
             removeDuplicates = value === 'true';
+            removeDuplicatesCheckbox.checked = removeDuplicates;
             break;
         }
     }
@@ -65,23 +66,24 @@ function saveDuplicatesSetting() {
 }
 
 function toggleDuplicates() {
-    removeDuplicates = !removeDuplicates;
+    removeDuplicates = removeDuplicatesCheckbox.checked;
     saveDuplicatesSetting();
-    updateToggleDuplicatesButton();
 
     if (removeDuplicates) {
-        removeDuplicateItems();
+        const removedCount = removeDuplicateItems();
+        if (removedCount > 0) {
+            showNotification(`Удалено ${removedCount} дубликатов`);
+        }
     }
 }
 
-function updateToggleDuplicatesButton() {
-    if (removeDuplicates) {
-        toggleDuplicatesBtn.classList.add('active');
-        toggleIconDuplicates.textContent = '✓';
-    } else {
-        toggleDuplicatesBtn.classList.remove('active');
-        toggleIconDuplicates.textContent = '✗';
-    }
+function showNotification(message) {
+    notificationText.textContent = message;
+    notification.style.display = 'block';
+
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
 }
 
 function isRutubeId(text) {
@@ -105,16 +107,19 @@ function cleanRutubeId(text) {
 }
 
 function removeDuplicateItems() {
-    if (!removeDuplicates) return;
+    if (!removeDuplicates) return 0;
 
     const seen = new Set();
     const uniqueItems = [];
+    let removedCount = 0;
 
     for (const item of listItems) {
         const cleanText = cleanRutubeId(item.text).trim().toLowerCase();
         if (!seen.has(cleanText)) {
             seen.add(cleanText);
             uniqueItems.push(item);
+        } else {
+            removedCount++;
         }
     }
 
@@ -123,7 +128,10 @@ function removeDuplicateItems() {
         saveToCookies();
         renderList();
         updateButtonsState();
+        updateExportText();
     }
+
+    return removedCount;
 }
 
 function updateExportSectionState() {
@@ -134,11 +142,23 @@ function updateExportSectionState() {
         exportContent.classList.remove('expanded');
         toggleIcon.textContent = '▶';
     }
+    updateExportText();
+}
+
+function updateExportText() {
+    const exportText = listItems.map(item => item.text).join('\n');
+    exportTextarea.value = exportText;
 }
 
 function toggleExport() {
     exportExpanded = !exportExpanded;
     updateExportSectionState();
+}
+
+function copyToClipboard() {
+    exportTextarea.select();
+    document.execCommand('copy');
+    showNotification('Скопировано в буфер обмена');
 }
 
 function showConfirmDialog() {
@@ -156,6 +176,7 @@ function performClearList() {
     saveToCookies();
     renderList();
     updateButtonsState();
+    updateExportText();
     hideConfirmDialog();
 }
 
@@ -168,7 +189,6 @@ function loadFromCookies() {
             try {
                 listItems = JSON.parse(decodeURIComponent(data));
             } catch (e) {
-                console.error('Ошибка при загрузке из cookies:', e);
                 listItems = [];
             }
             break;
@@ -193,8 +213,7 @@ function saveToCookies() {
 function updateButtonsState() {
     const hasItems = listItems.length > 0;
     clearListBtn.disabled = !hasItems;
-    exportBtn.disabled = !hasItems;
-    downloadBtn.disabled = !hasItems;
+    copyBtn.disabled = !hasItems;
 }
 
 addFromClipboardBtn.addEventListener('click', async function() {
@@ -211,24 +230,38 @@ addFromClipboardBtn.addEventListener('click', async function() {
             }
 
             const itemsToAdd = [];
+            let duplicatesCount = 0;
 
-            if (lines.length === 1) {
-                itemsToAdd.push(cleanRutubeId(lines[0]));
-            } else {
-                lines.forEach(line => {
-                    itemsToAdd.push(cleanRutubeId(line));
-                });
-            }
+            lines.forEach(line => {
+                const cleanedText = cleanRutubeId(line);
+                const checkText = cleanedText.trim().toLowerCase();
+
+                if (removeDuplicates) {
+                    const exists = listItems.some(item =>
+                        cleanRutubeId(item.text).trim().toLowerCase() === checkText
+                    );
+
+                    if (!exists) {
+                        itemsToAdd.push(cleanedText);
+                    } else {
+                        duplicatesCount++;
+                    }
+                } else {
+                    itemsToAdd.push(cleanedText);
+                }
+            });
 
             addMultipleItems(itemsToAdd);
+
+            if (duplicatesCount > 0) {
+                showNotification(`Пропущено ${duplicatesCount} дубликатов`);
+            }
 
             setTimeout(() => {
                 focusLastInput();
             }, 50);
         }
     } catch (err) {
-        console.error('Ошибка при чтении буфера обмена:', err);
-
         const userInput = prompt('Вставьте текст из буфера обмена (Ctrl+V):');
         if (userInput && userInput.trim()) {
             const lines = userInput.split('\n')
@@ -240,16 +273,32 @@ addFromClipboardBtn.addEventListener('click', async function() {
             }
 
             const itemsToAdd = [];
+            let duplicatesCount = 0;
 
-            if (lines.length === 1) {
-                itemsToAdd.push(cleanRutubeId(lines[0]));
-            } else {
-                lines.forEach(line => {
-                    itemsToAdd.push(cleanRutubeId(line));
-                });
-            }
+            lines.forEach(line => {
+                const cleanedText = cleanRutubeId(line);
+                const checkText = cleanedText.trim().toLowerCase();
+
+                if (removeDuplicates) {
+                    const exists = listItems.some(item =>
+                        cleanRutubeId(item.text).trim().toLowerCase() === checkText
+                    );
+
+                    if (!exists) {
+                        itemsToAdd.push(cleanedText);
+                    } else {
+                        duplicatesCount++;
+                    }
+                } else {
+                    itemsToAdd.push(cleanedText);
+                }
+            });
 
             addMultipleItems(itemsToAdd);
+
+            if (duplicatesCount > 0) {
+                showNotification(`Пропущено ${duplicatesCount} дубликатов`);
+            }
 
             setTimeout(() => {
                 focusLastInput();
@@ -259,26 +308,21 @@ addFromClipboardBtn.addEventListener('click', async function() {
 });
 
 function addMultipleItems(texts) {
-    const seen = new Set();
     const newItems = [];
 
     texts.forEach(text => {
         const cleanText = text.trim();
-        const checkText = cleanRutubeId(cleanText).trim().toLowerCase();
-
-        if (!removeDuplicates || !seen.has(checkText)) {
-            seen.add(checkText);
-            newItems.push({
-                id: Date.now() + Math.random() + Math.random(),
-                text: cleanText
-            });
-        }
+        newItems.push({
+            id: Date.now() + Math.random(),
+            text: cleanText
+        });
     });
 
     listItems.push(...newItems);
     saveToCookies();
     renderList();
     updateButtonsState();
+    updateExportText();
 }
 
 addEmptyBtn.addEventListener('click', function() {
@@ -287,35 +331,6 @@ addEmptyBtn.addEventListener('click', function() {
     setTimeout(() => {
         focusLastInput();
     }, 50);
-});
-
-exportBtn.addEventListener('click', function() {
-    const exportText = listItems.map(item => item.text).join('\n');
-    exportTextarea.value = exportText;
-
-    if (!exportExpanded) {
-        exportExpanded = true;
-        updateExportSectionState();
-    }
-
-    exportTextarea.focus();
-    exportTextarea.select();
-});
-
-downloadBtn.addEventListener('click', function() {
-    const exportText = listItems.map(item => item.text).join('\n');
-    const blob = new Blob([exportText], {
-        type: 'text/plain;charset=utf-8'
-    });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'список.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 });
 
 function addItem(text) {
@@ -341,6 +356,7 @@ function addItem(text) {
     saveToCookies();
     renderList();
     updateButtonsState();
+    updateExportText();
 }
 
 function deleteItem(id) {
@@ -348,6 +364,7 @@ function deleteItem(id) {
     saveToCookies();
     renderList();
     updateButtonsState();
+    updateExportText();
 }
 
 function updateItem(id, newText) {
@@ -370,6 +387,7 @@ function updateItem(id, newText) {
 
         item.text = cleanedText;
         saveToCookies();
+        updateExportText();
         return true;
     }
     return false;
@@ -386,7 +404,7 @@ function focusLastInput() {
 
 function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
-    const newHeight = Math.max(50, textarea.scrollHeight);
+    const newHeight = Math.max(36, textarea.scrollHeight);
     textarea.style.height = newHeight + 'px';
 
     const listItem = textarea.closest('.list-item');
@@ -445,6 +463,7 @@ function renderList() {
                     saveToCookies();
                     renderList();
                     updateButtonsState();
+                    updateExportText();
 
                     setTimeout(() => {
                         const newTextarea = document.querySelector(`[data-id="${newItem.id}"] .list-item-input`);
@@ -469,19 +488,6 @@ function renderList() {
 
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'list-item-actions';
-
-        const rutubeId = extractRutubeId(item.text);
-
-        if (rutubeId) {
-            const rutubeBtn = document.createElement('button');
-            rutubeBtn.className = 'rutube-btn';
-            rutubeBtn.title = 'Открыть на Rutube';
-            rutubeBtn.textContent = '▶';
-            rutubeBtn.addEventListener('click', () => {
-                window.open(`https://rutube.ru/video/${rutubeId}/`, '_blank');
-            });
-            actionsDiv.appendChild(rutubeBtn);
-        }
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'delete-btn';
