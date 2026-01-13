@@ -22,15 +22,18 @@ const cancelDeleteList = document.getElementById('cancelDeleteList');
 
 const COOKIE_KEY = 'listsData';
 const COOKIE_DUPLICATES_KEY = 'removeDuplicatesState';
+const COOKIE_LIST_HEIGHT_KEY = 'listHeight';
 
 let lists = [];
 let currentListIndex = 0;
 let saveTimer = null;
 let removeDuplicates = true;
+let listContainerWrapper = document.querySelector('.list-container-wrapper');
 
 document.addEventListener('DOMContentLoaded', function() {
     loadFromCookies();
     loadDuplicatesSetting();
+    loadListHeight();
 
     if (lists.length === 0) {
         createNewList();
@@ -45,6 +48,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 
     setupEventListeners();
+
+    if (listContainerWrapper) {
+        const resizeObserver = new ResizeObserver(() => {
+            saveListHeight();
+        });
+        resizeObserver.observe(listContainerWrapper);
+    }
 });
 
 function setupEventListeners() {
@@ -63,6 +73,34 @@ function setupEventListeners() {
 
     confirmDeleteList.addEventListener('click', performDeleteList);
     cancelDeleteList.addEventListener('click', hideDeleteListDialog);
+}
+
+function loadListHeight() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(`${COOKIE_LIST_HEIGHT_KEY}=`)) {
+            const value = cookie.substring(COOKIE_LIST_HEIGHT_KEY.length + 1);
+            try {
+                const height = parseInt(value);
+                if (height && listContainerWrapper) {
+                    listContainerWrapper.style.height = height + 'px';
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки высоты:', e);
+            }
+            break;
+        }
+    }
+}
+
+function saveListHeight() {
+    if (listContainerWrapper) {
+        const height = listContainerWrapper.offsetHeight;
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 30);
+        document.cookie = `${COOKIE_LIST_HEIGHT_KEY}=${height}; expires=${expirationDate.toUTCString()}; path=/`;
+    }
 }
 
 function loadDuplicatesSetting() {

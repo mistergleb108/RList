@@ -88,7 +88,7 @@ h1 {
     border-radius: 6px;
     padding: 8px 12px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 1rem;
     white-space: nowrap;
     transition: all 0.2s;
     min-width: 80px;
@@ -164,6 +164,17 @@ h1 {
     box-shadow: 0 4px 12px rgba(74, 111, 165, 0.3);
 }
 
+.btn-export {
+    background-color: #4b2c5f;
+    border: 1px solid #824c97;
+}
+
+.btn-export:hover {
+    background-color: #764991;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 111, 165, 0.3);
+}
+
 .btn-secondary {
     background-color: #2d593d;
     border: 1px solid #3d694d;
@@ -205,9 +216,27 @@ h1 {
     border-radius: 8px;
     overflow: hidden;
     background-color: #1a1a1a;
-    height: 550px;
+    height: 500px;
+    min-height: 300px;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
+    resize: vertical;
+    overflow: hidden;
+}
+
+.list-container-wrapper::-webkit-resizer {
+    background-color: #2a2a2a;
+    border-radius: 2px;
+}
+
+.list-container-wrapper::-webkit-resizer:hover {
+    background-color: #4a6fa5;
+}
+
+.list-container-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #333 #1a1a1a;
 }
 
 .list-header {
@@ -288,7 +317,7 @@ h1 {
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #f0f0f0;
     transition: all 0.2s;
     font-family: inherit;
@@ -526,7 +555,9 @@ footer {
         min-width: 120px;
     }
     .list-container-wrapper {
-        height: 500px;
+        height: 450px;
+        min-height: 250px;
+        max-height: 70vh;
     }
     .list-header {
         flex-direction: column;
@@ -580,7 +611,9 @@ footer {
         max-width: 220px;
     }
     .list-container-wrapper {
-        height: 450px;
+        height: 400px;
+        min-height: 200px;
+        max-height: 60vh;
     }
     .list-tab {
         padding: 6px 10px;
@@ -598,12 +631,14 @@ footer {
         max-width: 950px;
     }
     .list-container-wrapper {
-        height: 600px;
+        height: 550px;
+        min-height: 350px;
     }
 }
 
 @media (min-height: 800px) {
     .list-container-wrapper {
-        height: 650px;
+        height: 600px;
+        min-height: 400px;
     }
 }
