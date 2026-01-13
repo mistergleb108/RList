@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Интерактивный список</title>
+    <title>Списки</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMTUxNTE1Ii8+CjxwYXRoIGQ9Ik0xOCAxOEg0NlY0NkgxOFYxOFoiIGZpbGw9IiM0QTZGQTUiLz4KPHBhdGggZD0iTTE4IDE4VjQyTDI4IDMyTDE4IDIyVjE4WiIgZmlsbD0iIzJENTkzRCIvPgo8cGF0aCBkPSJNNDYgMThWNDJMMzYgMzJINDZWMjJWMThaIiBmaWxsPSIjNkQyQTNDIi8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiNmZmZmZmYiLz4KPGxpbmUgeDE9IjI4IiB5MT0iMjYiIHgyPSIzNiIgeTI9IjI2IiBzdHJva2U9IiM0QTZGQTUiIHN0cm9rZS13aWR0aD0iMiIvPgo8bGluZSB4MT0iMjgiIHkxPSIzMCIgeDI9IjM2IiB5Mj0iMzAiIHN0cm9rZT0iIzRBNkZBNSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxsaW5lIHgxPSIyOCIgeTE9IjM0IiB4Mj0iMzYiIHkyPSIzNCIgc3Ryb2tlPSIjNEE2RkE1IiBzdHJva2Utd2lkdGg9IjIiLz4KPGxpbmUgeDE9IjI4IiB5MT0iMzgiIHgyPSIzNiIgeTI9IjM4IiBzdHJva2U9IiM0QTZGQTUiIHN0cm9rZS13aWR0aD0iMiIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjI3IiByPSIyIiBmaWxsPSIjMkQ1OTNEIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iMzEiIHI9IjIiIGZpbGw9IiMyRDU5M0QiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSIzNSIgcj0iMiIgZmlsbD0iIzJENTkzRCIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjM5IiByPSIyIiBmaWxsPSIjMkQ1OTNEIi8+CjxwYXRoIGQ9Ik0yMiAzMkwxOCAyOFYzNkwyMiAzMloiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4zIi8+CjxwYXRoIGQ9Ik00MiAzMkw0NiAyOFYzNkw0MiAzMloiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4zIi8+Cjwvc3ZnPgo="
         type="image/svg+xml">
@@ -13,18 +13,33 @@
 <body>
     <div class="container">
         <header>
-            <h1>Список</h1>
+            <div class="header-top">
+                <h1>Списки</h1>
+                <button id="newListBtn" class="btn btn-secondary">
+                    <span class="btn-icon">+</span> Новый список
+                </button>
+            </div>
+            <div class="lists-menu">
+                <div class="lists-scroll">
+                    <div class="lists-container" id="listsContainer">
+                    </div>
+                </div>
+            </div>
         </header>
 
         <div class="controls">
             <button id="addFromClipboard" class="btn btn-primary">
                 <span class="btn-icon">📋</span> Из буфера
             </button>
+
         </div>
 
         <div class="list-container-wrapper">
             <div class="list-header">
                 <span>Элементы: <span id="itemCount">0</span></span>
+                <div class="list-name-container">
+                    <input type="text" id="listNameInput" class="list-name-input" placeholder="Название списка">
+                </div>
             </div>
             <div class="list-container">
                 <ul id="itemList" class="list-items">
@@ -40,25 +55,16 @@
             <button id="clearList" class="btn btn-danger">
                 <span class="btn-icon">×</span> Очистить
             </button>
-        </div>
-
-        <div class="export-section">
-            <div class="export-header" id="exportToggle">
-                <h3>Экспорт</h3>
-                <span class="toggle-icon" id="toggleIcon">▶</span>
-            </div>
-            <div class="export-content" id="exportContent">
-                <textarea id="exportTextarea" placeholder="Список для экспорта..." readonly></textarea>
-                <div class="export-controls">
-                    <button id="copyBtn" class="btn btn-primary">
-                        <span class="btn-icon">📋</span> Копировать
-                    </button>
-                </div>
-            </div>
+            <button id="copyAllBtn" class="btn btn-primary">
+                <span class="btn-icon">📋</span> Копировать всё
+            </button>
         </div>
 
         <footer>
             <div class="footer-content">
+                <button id="deleteListBtn" class="btn btn-danger btn-small">
+                    <span class="btn-icon">🗑️</span> Удалить список
+                </button>
                 <label class="duplicates-checkbox">
                     <input type="checkbox" id="removeDuplicatesCheckbox" checked>
                     <span class="checkmark"></span>
@@ -77,6 +83,21 @@
                     <span class="btn-icon">×</span> Очистить
                 </button>
                 <button id="cancelClear" class="btn btn-secondary">
+                    <span class="btn-icon">←</span> Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirm-overlay" id="confirmDeleteListOverlay">
+        <div class="confirm-dialog">
+            <h3>Удалить список?</h3>
+            <p>Вы уверены, что хотите удалить этот список? Это действие нельзя отменить.</p>
+            <div class="confirm-buttons">
+                <button id="confirmDeleteList" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span> Удалить
+                </button>
+                <button id="cancelDeleteList" class="btn btn-secondary">
                     <span class="btn-icon">←</span> Отмена
                 </button>
             </div>
