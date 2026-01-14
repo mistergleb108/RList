@@ -132,6 +132,15 @@ h1 {
     flex-wrap: wrap;
 }
 
+.footer-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #2a2a2a;
+}
+
 .btn {
     padding: 10px 20px;
     border: none;
@@ -380,15 +389,8 @@ h1 {
     justify-content: center;
 }
 
-footer {
-    margin-top: auto;
-    padding-top: 15px;
-    border-top: 1px solid #2a2a2a;
-}
-
-.footer-content {
+.duplicates-container {
     display: flex;
-    justify-content: space-between;
     align-items: center;
 }
 
@@ -397,7 +399,7 @@ footer {
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #aaa;
     user-select: none;
     transition: color 0.2s;
@@ -412,8 +414,8 @@ footer {
 }
 
 .checkmark {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border: 1px solid #444;
     border-radius: 3px;
     display: inline-block;
@@ -434,7 +436,7 @@ footer {
     left: 50%;
     transform: translate(-50%, -50%);
     color: white;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
 }
 
 .confirm-overlay {
@@ -583,7 +585,7 @@ footer {
         height: 28px;
         font-size: 1rem;
     }
-    .footer-content {
+    .footer-controls {
         flex-direction: column;
         gap: 15px;
         align-items: stretch;
@@ -623,6 +625,9 @@ footer {
     .list-name-input {
         font-size: 0.9rem;
         padding: 6px 10px;
+    }
+    .footer-controls {
+        align-items: center;
     }
 }
 

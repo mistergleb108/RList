@@ -31,7 +31,6 @@
             <button id="addFromClipboard" class="btn btn-primary">
                 <span class="btn-icon">📋</span> Из буфера
             </button>
-
         </div>
 
         <div class="list-container-wrapper">
@@ -60,18 +59,19 @@
             </button>
         </div>
 
-        <footer>
-            <div class="footer-content">
-                <button id="deleteListBtn" class="btn btn-danger btn-small">
-                    <span class="btn-icon">🗑️</span> Удалить список
-                </button>
+        <div class="footer-controls">
+            <button id="deleteListBtn" class="btn btn-danger btn-small">
+                <span class="btn-icon">🗑️</span> Удалить список
+            </button>
+
+            <div class="duplicates-container">
                 <label class="duplicates-checkbox">
                     <input type="checkbox" id="removeDuplicatesCheckbox" checked>
                     <span class="checkmark"></span>
                     Удалять дубликаты
                 </label>
             </div>
-        </footer>
+        </div>
     </div>
 
     <div class="confirm-overlay" id="confirmOverlay">

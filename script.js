@@ -20,9 +20,9 @@ const confirmDeleteListOverlay = document.getElementById('confirmDeleteListOverl
 const confirmDeleteList = document.getElementById('confirmDeleteList');
 const cancelDeleteList = document.getElementById('cancelDeleteList');
 
-const COOKIE_KEY = 'listsData';
-const COOKIE_DUPLICATES_KEY = 'removeDuplicatesState';
-const COOKIE_LIST_HEIGHT_KEY = 'listHeight';
+const STORAGE_KEY = 'listsData';
+const SETTINGS_KEY = 'listSettings';
+const LIST_HEIGHT_KEY = 'listHeight';
 
 let lists = [];
 let currentListIndex = 0;
@@ -31,8 +31,11 @@ let removeDuplicates = true;
 let listContainerWrapper = document.querySelector('.list-container-wrapper');
 
 document.addEventListener('DOMContentLoaded', function() {
-    loadFromCookies();
-    loadDuplicatesSetting();
+    // Миграция из cookies в localStorage
+    migrateFromCookies();
+
+    loadFromStorage();
+    loadSettings();
     loadListHeight();
 
     if (lists.length === 0) {
@@ -57,6 +60,56 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Миграция данных из cookies в localStorage
+function migrateFromCookies() {
+    try {
+        // Проверяем есть ли данные в cookies
+        const cookies = document.cookie.split(';');
+        let cookieData = null;
+        let cookieSettings = null;
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith('listsData=')) {
+                const data = cookie.substring('listsData='.length);
+                try {
+                    cookieData = JSON.parse(decodeURIComponent(data));
+                } catch (e) {
+                    console.error('Ошибка парсинга cookie данных:', e);
+                }
+            } else if (cookie.startsWith('removeDuplicatesState=')) {
+                const value = cookie.substring('removeDuplicatesState='.length);
+                cookieSettings = { removeDuplicates: value === 'true' };
+            }
+        }
+
+        // Если есть данные в cookies и нет в localStorage, переносим
+        if (cookieData && !localStorage.getItem(STORAGE_KEY)) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cookieData));
+            console.log('Данные мигрированы из cookies в localStorage');
+        }
+
+        if (cookieSettings && !localStorage.getItem(SETTINGS_KEY)) {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(cookieSettings));
+            console.log('Настройки мигрированы из cookies в localStorage');
+        }
+
+        // Очищаем cookies
+        clearCookies();
+
+    } catch (e) {
+        console.error('Ошибка миграции данных:', e);
+    }
+}
+
+function clearCookies() {
+    // Очищаем все старые cookies
+    const cookies = ['listsData', 'clipboardListData', 'removeDuplicatesState', 'listHeight'];
+    cookies.forEach(cookieName => {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
+}
+
 function setupEventListeners() {
     clearListBtn.addEventListener('click', showConfirmDialog);
     confirmClearBtn.addEventListener('click', performClearList);
@@ -76,55 +129,63 @@ function setupEventListeners() {
 }
 
 function loadListHeight() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(`${COOKIE_LIST_HEIGHT_KEY}=`)) {
-            const value = cookie.substring(COOKIE_LIST_HEIGHT_KEY.length + 1);
-            try {
-                const height = parseInt(value);
-                if (height && listContainerWrapper) {
-                    listContainerWrapper.style.height = height + 'px';
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки высоты:', e);
+    try {
+        const height = localStorage.getItem(LIST_HEIGHT_KEY);
+        if (height && listContainerWrapper) {
+            const heightNum = parseInt(height);
+            if (!isNaN(heightNum) && heightNum > 0) {
+                listContainerWrapper.style.height = heightNum + 'px';
             }
-            break;
         }
+    } catch (e) {
+        console.error('Ошибка загрузки высоты:', e);
     }
 }
 
 function saveListHeight() {
-    if (listContainerWrapper) {
-        const height = listContainerWrapper.offsetHeight;
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 30);
-        document.cookie = `${COOKIE_LIST_HEIGHT_KEY}=${height}; expires=${expirationDate.toUTCString()}; path=/`;
-    }
-}
-
-function loadDuplicatesSetting() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(`${COOKIE_DUPLICATES_KEY}=`)) {
-            const value = cookie.substring(COOKIE_DUPLICATES_KEY.length + 1);
-            removeDuplicates = value === 'true';
-            removeDuplicatesCheckbox.checked = removeDuplicates;
-            break;
+    try {
+        if (listContainerWrapper) {
+            const height = listContainerWrapper.offsetHeight;
+            localStorage.setItem(LIST_HEIGHT_KEY, height.toString());
         }
+    } catch (e) {
+        console.error('Ошибка сохранения высоты:', e);
     }
 }
 
-function saveDuplicatesSetting() {
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
-    document.cookie = `${COOKIE_DUPLICATES_KEY}=${removeDuplicates}; expires=${expirationDate.toUTCString()}; path=/`;
+function loadSettings() {
+    try {
+        const settings = localStorage.getItem(SETTINGS_KEY);
+        if (settings) {
+            const parsed = JSON.parse(settings);
+            removeDuplicates = parsed.removeDuplicates !== undefined ? parsed.removeDuplicates : true;
+            removeDuplicatesCheckbox.checked = removeDuplicates;
+        } else {
+            // Значение по умолчанию
+            removeDuplicates = true;
+            removeDuplicatesCheckbox.checked = true;
+        }
+    } catch (e) {
+        console.error('Ошибка загрузки настроек:', e);
+        removeDuplicates = true;
+        removeDuplicatesCheckbox.checked = true;
+    }
+}
+
+function saveSettings() {
+    try {
+        const settings = {
+            removeDuplicates: removeDuplicates
+        };
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.error('Ошибка сохранения настроек:', e);
+    }
 }
 
 function toggleDuplicates() {
     removeDuplicates = removeDuplicatesCheckbox.checked;
-    saveDuplicatesSetting();
+    saveSettings();
 
     if (removeDuplicates) {
         const removedCount = removeDuplicateItems();
@@ -143,33 +204,44 @@ function showNotification(message) {
     }, 3000);
 }
 
-function loadFromCookies() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(`${COOKIE_KEY}=`)) {
-            const data = cookie.substring(COOKIE_KEY.length + 1);
-            try {
-                lists = JSON.parse(decodeURIComponent(data));
-            } catch (e) {
+function loadFromStorage() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) {
+            lists = JSON.parse(data);
+            // Проверяем структуру данных
+            if (!Array.isArray(lists)) {
+                console.warn('Некорректная структура данных, сброс к начальному состоянию');
                 lists = [];
             }
-            break;
         }
+    } catch (e) {
+        console.error('Ошибка загрузки данных:', e);
+        lists = [];
     }
 }
 
-function saveToCookies() {
+function saveToStorage() {
     if (saveTimer) {
         clearTimeout(saveTimer);
     }
 
     saveTimer = setTimeout(() => {
-        const data = encodeURIComponent(JSON.stringify(lists));
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 30);
-
-        document.cookie = `${COOKIE_KEY}=${data}; expires=${expirationDate.toUTCString()}; path=/`;
+        try {
+            const data = JSON.stringify(lists);
+            localStorage.setItem(STORAGE_KEY, data);
+        } catch (e) {
+            console.error('Ошибка сохранения данных в localStorage:', e);
+            // Попробуем сохранить в cookies как запасной вариант (только для небольших данных)
+            try {
+                const smallData = encodeURIComponent(JSON.stringify(lists.slice(-5))); // Сохраняем только последние 5 списков
+                const expirationDate = new Date();
+                expirationDate.setDate(expirationDate.getDate() + 30);
+                document.cookie = `listsData=${smallData}; expires=${expirationDate.toUTCString()}; path=/`;
+            } catch (e2) {
+                console.error('Ошибка сохранения в cookies:', e2);
+            }
+        }
     }, 500);
 }
 
@@ -181,7 +253,7 @@ function createNewList() {
     };
 
     lists.push(newList);
-    saveToCookies();
+    saveToStorage();
     return lists.length - 1;
 }
 
@@ -226,7 +298,7 @@ function updateListName() {
     const name = listNameInput.value.trim();
     if (name && lists[currentListIndex]) {
         lists[currentListIndex].name = name;
-        saveToCookies();
+        saveToStorage();
         renderListTabs();
     }
 }
@@ -236,7 +308,7 @@ function getCurrentList() {
 }
 
 function saveCurrentList() {
-    saveToCookies();
+    saveToStorage();
 }
 
 function updateButtonsState() {
@@ -545,7 +617,7 @@ function performDeleteList() {
         if (currentListIndex >= lists.length) {
             currentListIndex = lists.length - 1;
         }
-        saveToCookies();
+        saveToStorage();
         renderListTabs();
         switchToList(currentListIndex);
         hideDeleteListDialog();
