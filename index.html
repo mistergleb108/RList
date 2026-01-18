@@ -19,13 +19,29 @@
                     <span class="btn-icon">+</span> Новый список
                 </button>
             </div>
-            <div class="lists-menu">
-                <div class="lists-scroll">
-                    <div class="lists-container" id="listsContainer">
-                    </div>
+
+            <div class="settings-panel">
+                <div class="settings-group">
+                    <label class="setting-checkbox">
+                        <input type="checkbox" id="checkDuplicatesCheckbox" checked>
+                        <span class="checkmark"></span>
+                        <span class="setting-label">Проверять дубликаты</span>
+                    </label>
+                    <label class="setting-checkbox">
+                        <input type="checkbox" id="extractIdCheckbox" checked>
+                        <span class="checkmark"></span>
+                        <span class="setting-label">Проверка на ID</span>
+                    </label>
                 </div>
             </div>
         </header>
+
+        <div class="lists-menu">
+            <div class="lists-scroll">
+                <div class="lists-container" id="listsContainer">
+                </div>
+            </div>
+        </div>
 
         <div class="controls">
             <button id="addFromClipboard" class="btn btn-primary">
@@ -36,8 +52,8 @@
         <div class="list-container-wrapper">
             <div class="list-header">
                 <span>Элементы: <span id="itemCount">0</span></span>
-                <div class="list-name-container">
-                    <input type="text" id="listNameInput" class="list-name-input" placeholder="Название списка">
+                <div class="list-name-display">
+                    <span id="currentListName">Новый список</span>
                 </div>
             </div>
             <div class="list-container">
@@ -54,8 +70,8 @@
             <button id="clearList" class="btn btn-danger">
                 <span class="btn-icon">×</span> Очистить
             </button>
-            <button id="copyAllBtn" class="btn btn-export">
-                <span class="btn-icon">📋</span> Экспорт списка
+            <button id="exportMenuBtn" class="btn btn-export">
+                <span class="btn-icon">📋</span> Экспорт
             </button>
         </div>
 
@@ -63,13 +79,47 @@
             <button id="deleteListBtn" class="btn btn-danger btn-small">
                 <span class="btn-icon">🗑️</span> Удалить список
             </button>
+        </div>
+    </div>
 
-            <div class="duplicates-container">
-                <label class="duplicates-checkbox">
-                    <input type="checkbox" id="removeDuplicatesCheckbox" checked>
-                    <span class="checkmark"></span>
-                    Удалять дубликаты
-                </label>
+    <!-- Диалог экспорта -->
+    <div class="export-overlay" id="exportOverlay">
+        <div class="export-dialog">
+            <h3>Экспорт списка</h3>
+            <div class="export-options">
+                <div class="export-option">
+                    <input type="radio" id="exportWithoutName" name="exportOption" value="withoutName" checked>
+                    <label for="exportWithoutName">Экспорт без названия</label>
+                </div>
+                <div class="export-option">
+                    <input type="radio" id="exportWithName" name="exportOption" value="withName">
+                    <label for="exportWithName">Экспорт с названием списка</label>
+                </div>
+            </div>
+            <textarea id="exportTextarea" readonly class="export-textarea"></textarea>
+            <div class="export-buttons">
+                <button id="copyExportBtn" class="btn btn-primary">
+                    <span class="btn-icon">📋</span> Копировать
+                </button>
+                <button id="cancelExportBtn" class="btn btn-secondary">
+                    <span class="btn-icon">←</span> Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Диалог редактирования названия -->
+    <div class="edit-name-overlay" id="editNameOverlay">
+        <div class="edit-name-dialog">
+            <h3>Редактировать название</h3>
+            <input type="text" id="editNameInput" class="edit-name-input" placeholder="Название списка">
+            <div class="edit-name-buttons">
+                <button id="saveNameBtn" class="btn btn-primary">
+                    <span class="btn-icon">✓</span> Сохранить
+                </button>
+                <button id="cancelEditNameBtn" class="btn btn-secondary">
+                    <span class="btn-icon">←</span> Отмена
+                </button>
             </div>
         </div>
     </div>

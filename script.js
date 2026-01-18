@@ -3,14 +3,27 @@ const addFromClipboardBtn = document.getElementById('addFromClipboard');
 const addEmptyBtn = document.getElementById('addEmpty');
 const clearListBtn = document.getElementById('clearList');
 const newListBtn = document.getElementById('newListBtn');
-const copyAllBtn = document.getElementById('copyAllBtn');
+const exportMenuBtn = document.getElementById('exportMenuBtn');
 const deleteListBtn = document.getElementById('deleteListBtn');
-const removeDuplicatesCheckbox = document.getElementById('removeDuplicatesCheckbox');
-const listNameInput = document.getElementById('listNameInput');
+const checkDuplicatesCheckbox = document.getElementById('checkDuplicatesCheckbox');
+const extractIdCheckbox = document.getElementById('extractIdCheckbox');
 const itemCount = document.getElementById('itemCount');
+const currentListName = document.getElementById('currentListName');
 const listsContainer = document.getElementById('listsContainer');
 const notification = document.getElementById('notification');
 const notificationText = document.getElementById('notificationText');
+
+const exportOverlay = document.getElementById('exportOverlay');
+const exportTextarea = document.getElementById('exportTextarea');
+const copyExportBtn = document.getElementById('copyExportBtn');
+const cancelExportBtn = document.getElementById('cancelExportBtn');
+const exportWithoutNameRadio = document.getElementById('exportWithoutName');
+const exportWithNameRadio = document.getElementById('exportWithName');
+
+const editNameOverlay = document.getElementById('editNameOverlay');
+const editNameInput = document.getElementById('editNameInput');
+const saveNameBtn = document.getElementById('saveNameBtn');
+const cancelEditNameBtn = document.getElementById('cancelEditNameBtn');
 
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmClearBtn = document.getElementById('confirmClear');
@@ -27,8 +40,10 @@ const LIST_HEIGHT_KEY = 'listHeight';
 let lists = [];
 let currentListIndex = 0;
 let saveTimer = null;
-let removeDuplicates = true;
+let checkDuplicates = true;
+let extractId = true;
 let listContainerWrapper = document.querySelector('.list-container-wrapper');
+let currentEditingTabIndex = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Миграция из cookies в localStorage
@@ -115,14 +130,23 @@ function setupEventListeners() {
     confirmClearBtn.addEventListener('click', performClearList);
     cancelClearBtn.addEventListener('click', hideConfirmDialog);
 
-    removeDuplicatesCheckbox.addEventListener('change', toggleDuplicates);
+    checkDuplicatesCheckbox.addEventListener('change', toggleCheckDuplicates);
+    extractIdCheckbox.addEventListener('change', toggleExtractId);
 
     newListBtn.addEventListener('click', handleNewList);
-    copyAllBtn.addEventListener('click', copyAllToClipboard);
+    exportMenuBtn.addEventListener('click', showExportDialog);
     deleteListBtn.addEventListener('click', showDeleteListDialog);
 
-    listNameInput.addEventListener('input', updateListName);
-    listNameInput.addEventListener('blur', saveCurrentList);
+    addFromClipboardBtn.addEventListener('click', addFromClipboard);
+    addEmptyBtn.addEventListener('click', addEmptyItem);
+
+    exportWithoutNameRadio.addEventListener('change', updateExportText);
+    exportWithNameRadio.addEventListener('change', updateExportText);
+    copyExportBtn.addEventListener('click', copyExportToClipboard);
+    cancelExportBtn.addEventListener('click', hideExportDialog);
+
+    saveNameBtn.addEventListener('click', saveListName);
+    cancelEditNameBtn.addEventListener('click', hideEditNameDialog);
 
     confirmDeleteList.addEventListener('click', performDeleteList);
     cancelDeleteList.addEventListener('click', hideDeleteListDialog);
@@ -158,24 +182,32 @@ function loadSettings() {
         const settings = localStorage.getItem(SETTINGS_KEY);
         if (settings) {
             const parsed = JSON.parse(settings);
-            removeDuplicates = parsed.removeDuplicates !== undefined ? parsed.removeDuplicates : true;
-            removeDuplicatesCheckbox.checked = removeDuplicates;
+            checkDuplicates = parsed.checkDuplicates !== undefined ? parsed.checkDuplicates : true;
+            extractId = parsed.extractId !== undefined ? parsed.extractId : true;
+
+            checkDuplicatesCheckbox.checked = checkDuplicates;
+            extractIdCheckbox.checked = extractId;
         } else {
-            // Значение по умолчанию
-            removeDuplicates = true;
-            removeDuplicatesCheckbox.checked = true;
+            // Значения по умолчанию
+            checkDuplicates = true;
+            extractId = true;
+            checkDuplicatesCheckbox.checked = true;
+            extractIdCheckbox.checked = true;
         }
     } catch (e) {
         console.error('Ошибка загрузки настроек:', e);
-        removeDuplicates = true;
-        removeDuplicatesCheckbox.checked = true;
+        checkDuplicates = true;
+        extractId = true;
+        checkDuplicatesCheckbox.checked = true;
+        extractIdCheckbox.checked = true;
     }
 }
 
 function saveSettings() {
     try {
         const settings = {
-            removeDuplicates: removeDuplicates
+            checkDuplicates: checkDuplicates,
+            extractId: extractId
         };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {
@@ -183,16 +215,16 @@ function saveSettings() {
     }
 }
 
-function toggleDuplicates() {
-    removeDuplicates = removeDuplicatesCheckbox.checked;
+function toggleCheckDuplicates() {
+    checkDuplicates = checkDuplicatesCheckbox.checked;
     saveSettings();
+    showNotification('Настройки обновлены');
+}
 
-    if (removeDuplicates) {
-        const removedCount = removeDuplicateItems();
-        if (removedCount > 0) {
-            showNotification(`Удалено ${removedCount} дубликатов`);
-        }
-    }
+function toggleExtractId() {
+    extractId = extractIdCheckbox.checked;
+    saveSettings();
+    showNotification('Настройки обновлены');
 }
 
 function showNotification(message) {
@@ -276,30 +308,63 @@ function renderListTabs() {
         nameSpan.className = 'list-tab-name';
         nameSpan.textContent = list.name || `Список ${index + 1}`;
 
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-tab-btn';
+        editBtn.title = 'Редактировать название';
+        editBtn.innerHTML = '✏️';
+
+        // Предотвращаем всплытие события при клике на кнопку редактирования
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showEditNameDialog(index);
+        });
+
         tab.appendChild(nameSpan);
+        tab.appendChild(editBtn);
+
         tab.addEventListener('click', () => switchToList(index));
 
         listsContainer.appendChild(tab);
     });
 }
 
+function showEditNameDialog(index) {
+    currentEditingTabIndex = index;
+    editNameInput.value = lists[index].name || `Список ${index + 1}`;
+    editNameOverlay.style.display = 'flex';
+    editNameInput.focus();
+    editNameInput.select();
+}
+
+function hideEditNameDialog() {
+    editNameOverlay.style.display = 'none';
+    currentEditingTabIndex = null;
+}
+
+function saveListName() {
+    if (currentEditingTabIndex !== null) {
+        const newName = editNameInput.value.trim();
+        if (newName) {
+            lists[currentEditingTabIndex].name = newName;
+            saveToStorage();
+            renderListTabs();
+            if (currentEditingTabIndex === currentListIndex) {
+                currentListName.textContent = newName;
+            }
+            showNotification('Название сохранено');
+        }
+    }
+    hideEditNameDialog();
+}
+
 function switchToList(index) {
     if (index >= 0 && index < lists.length) {
         currentListIndex = index;
         const list = lists[index];
-        listNameInput.value = list.name || `Список ${index + 1}`;
+        currentListName.textContent = list.name || `Список ${index + 1}`;
         renderListTabs();
         renderList();
         updateButtonsState();
-    }
-}
-
-function updateListName() {
-    const name = listNameInput.value.trim();
-    if (name && lists[currentListIndex]) {
-        lists[currentListIndex].name = name;
-        saveToStorage();
-        renderListTabs();
     }
 }
 
@@ -315,6 +380,7 @@ function updateButtonsState() {
     const currentList = getCurrentList();
     const hasItems = currentList && currentList.items && currentList.items.length > 0;
     clearListBtn.disabled = !hasItems;
+    exportMenuBtn.disabled = !hasItems;
     deleteListBtn.disabled = lists.length <= 1;
 }
 
@@ -334,41 +400,15 @@ function extractRutubeId(text) {
 }
 
 function cleanRutubeId(text) {
+    if (!extractId) {
+        return text;
+    }
+
     const rutubeId = extractRutubeId(text);
     return rutubeId ? rutubeId : text;
 }
 
-function removeDuplicateItems() {
-    if (!removeDuplicates) return 0;
-
-    const currentList = getCurrentList();
-    if (!currentList || !currentList.items) return 0;
-
-    const seen = new Set();
-    const uniqueItems = [];
-    let removedCount = 0;
-
-    for (const item of currentList.items) {
-        const cleanText = cleanRutubeId(item.text).trim().toLowerCase();
-        if (!seen.has(cleanText)) {
-            seen.add(cleanText);
-            uniqueItems.push(item);
-        } else {
-            removedCount++;
-        }
-    }
-
-    if (uniqueItems.length !== currentList.items.length) {
-        currentList.items = uniqueItems;
-        saveCurrentList();
-        renderList();
-        updateButtonsState();
-    }
-
-    return removedCount;
-}
-
-addFromClipboardBtn.addEventListener('click', async function() {
+async function addFromClipboard() {
     try {
         const clipboardText = await navigator.clipboard.readText();
 
@@ -378,6 +418,7 @@ addFromClipboardBtn.addEventListener('click', async function() {
                 .filter(line => line.length > 0);
 
             if (lines.length === 0) {
+                showNotification('Буфер обмена пуст');
                 return;
             }
 
@@ -389,9 +430,9 @@ addFromClipboardBtn.addEventListener('click', async function() {
 
             lines.forEach(line => {
                 const cleanedText = cleanRutubeId(line);
-                const checkText = cleanedText.trim().toLowerCase();
 
-                if (removeDuplicates) {
+                if (checkDuplicates) {
+                    const checkText = cleanedText.trim().toLowerCase();
                     const exists = currentList.items.some(item =>
                         cleanRutubeId(item.text).trim().toLowerCase() === checkText
                     );
@@ -406,7 +447,10 @@ addFromClipboardBtn.addEventListener('click', async function() {
                 }
             });
 
-            addMultipleItems(itemsToAdd);
+            if (itemsToAdd.length > 0) {
+                addMultipleItems(itemsToAdd);
+                showNotification(`Добавлено ${itemsToAdd.length} элементов`);
+            }
 
             if (duplicatesCount > 0) {
                 showNotification(`Пропущено ${duplicatesCount} дубликатов`);
@@ -415,8 +459,11 @@ addFromClipboardBtn.addEventListener('click', async function() {
             setTimeout(() => {
                 focusLastInput();
             }, 50);
+        } else {
+            showNotification('Буфер обмена пуст');
         }
     } catch (err) {
+        // Fallback для браузеров без Clipboard API
         const userInput = prompt('Вставьте текст из буфера обмена (Ctrl+V):');
         if (userInput && userInput.trim()) {
             const lines = userInput.split('\n')
@@ -435,9 +482,9 @@ addFromClipboardBtn.addEventListener('click', async function() {
 
             lines.forEach(line => {
                 const cleanedText = cleanRutubeId(line);
-                const checkText = cleanedText.trim().toLowerCase();
 
-                if (removeDuplicates) {
+                if (checkDuplicates) {
+                    const checkText = cleanedText.trim().toLowerCase();
                     const exists = currentList.items.some(item =>
                         cleanRutubeId(item.text).trim().toLowerCase() === checkText
                     );
@@ -452,7 +499,10 @@ addFromClipboardBtn.addEventListener('click', async function() {
                 }
             });
 
-            addMultipleItems(itemsToAdd);
+            if (itemsToAdd.length > 0) {
+                addMultipleItems(itemsToAdd);
+                showNotification(`Добавлено ${itemsToAdd.length} элементов`);
+            }
 
             if (duplicatesCount > 0) {
                 showNotification(`Пропущено ${duplicatesCount} дубликатов`);
@@ -463,7 +513,7 @@ addFromClipboardBtn.addEventListener('click', async function() {
             }, 50);
         }
     }
-});
+}
 
 function addMultipleItems(texts) {
     const currentList = getCurrentList();
@@ -485,40 +535,23 @@ function addMultipleItems(texts) {
     updateButtonsState();
 }
 
-addEmptyBtn.addEventListener('click', function() {
-    addItem('');
-
-    setTimeout(() => {
-        focusLastInput();
-    }, 50);
-});
-
-function addItem(text) {
+function addEmptyItem() {
     const currentList = getCurrentList();
     if (!currentList) return;
 
-    const cleanedText = cleanRutubeId(text);
-
-    if (removeDuplicates) {
-        const checkText = cleanedText.trim().toLowerCase();
-        const exists = currentList.items.some(item =>
-            cleanRutubeId(item.text).trim().toLowerCase() === checkText
-        );
-
-        if (exists) {
-            return;
-        }
-    }
-
     const newItem = {
         id: Date.now() + Math.random(),
-        text: cleanedText || ''
+        text: ''
     };
 
     currentList.items.push(newItem);
     saveCurrentList();
     renderList();
     updateButtonsState();
+
+    setTimeout(() => {
+        focusLastInput();
+    }, 50);
 }
 
 function deleteItem(id) {
@@ -539,7 +572,7 @@ function updateItem(id, newText) {
     if (item) {
         const cleanedText = cleanRutubeId(newText);
 
-        if (removeDuplicates) {
+        if (checkDuplicates) {
             const checkText = cleanedText.trim().toLowerCase();
             const duplicate = currentList.items.find(otherItem =>
                 otherItem.id !== id &&
@@ -547,6 +580,7 @@ function updateItem(id, newText) {
             );
 
             if (duplicate) {
+                // Удаляем текущий элемент, так как он дублирует существующий
                 deleteItem(id);
                 return false;
             }
@@ -559,18 +593,39 @@ function updateItem(id, newText) {
     return false;
 }
 
-function copyAllToClipboard() {
+function showExportDialog() {
     const currentList = getCurrentList();
     if (!currentList || !currentList.items || currentList.items.length === 0) {
         showNotification('Список пуст');
         return;
     }
 
-    const exportText = currentList.items.map(item => item.text).join('\n');
+    exportOverlay.style.display = 'flex';
+    updateExportText();
+}
 
-    navigator.clipboard.writeText(exportText)
+function hideExportDialog() {
+    exportOverlay.style.display = 'none';
+}
+
+function updateExportText() {
+    const currentList = getCurrentList();
+    if (!currentList) return;
+
+    const itemsText = currentList.items.map(item => item.text).join('\n');
+
+    if (exportWithNameRadio.checked) {
+        exportTextarea.value = `${currentList.name}\n${itemsText}`;
+    } else {
+        exportTextarea.value = itemsText;
+    }
+}
+
+function copyExportToClipboard() {
+    navigator.clipboard.writeText(exportTextarea.value)
         .then(() => {
-            showNotification('Скопировано в буфер обмена');
+            showNotification('Экспортировано в буфер обмена');
+            hideExportDialog();
         })
         .catch(err => {
             console.error('Ошибка копирования:', err);

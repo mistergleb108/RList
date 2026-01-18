@@ -28,7 +28,7 @@ body {
 }
 
 header {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .header-top {
@@ -46,11 +46,76 @@ h1 {
     margin: 0;
 }
 
+.settings-panel {
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+    padding: 12px 16px;
+    margin-bottom: 15px;
+}
+
+.settings-group {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.setting-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #aaa;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.setting-checkbox:hover {
+    color: #ccc;
+}
+
+.setting-checkbox input {
+    display: none;
+}
+
+.setting-checkbox .checkmark {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #444;
+    border-radius: 3px;
+    display: inline-block;
+    position: relative;
+    transition: all 0.2s;
+    background-color: #222;
+    flex-shrink: 0;
+}
+
+.setting-checkbox input:checked+.checkmark {
+    background-color: #4a6fa5;
+    border-color: #5a7fb5;
+}
+
+.setting-checkbox input:checked+.checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 0.8rem;
+}
+
+.setting-label {
+    font-size: 0.9rem;
+}
+
 .lists-menu {
     background-color: #1a1a1a;
     border-radius: 8px;
     border: 1px solid #2a2a2a;
-    padding: 8px;
+    padding: 10px;
+    margin-bottom: 15px;
 }
 
 .lists-scroll {
@@ -96,7 +161,10 @@ h1 {
     position: relative;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 150px;
+    max-width: 180px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .list-tab:hover {
@@ -114,6 +182,30 @@ h1 {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+}
+
+.edit-tab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    padding: 2px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.edit-tab-btn:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .controls {
@@ -261,27 +353,23 @@ h1 {
     flex-shrink: 0;
 }
 
-.list-name-container {
+.list-name-display {
     flex: 1;
     margin-left: 20px;
     max-width: 300px;
-}
-
-.list-name-input {
-    width: 100%;
-    background-color: #2a2a2a;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: #ffffff;
-    font-size: 0.95rem;
+    text-align: right;
+    font-size: 1.1rem;
     font-weight: 500;
+    color: #ffffff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.list-name-input:focus {
-    outline: none;
-    border-color: #4a6fa5;
-    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+#currentListName {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .list-container {
@@ -389,54 +477,138 @@ h1 {
     justify-content: center;
 }
 
-.duplicates-container {
+
+/* Диалог экспорта */
+
+.export-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     align-items: center;
-}
-
-.duplicates-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: #aaa;
-    user-select: none;
-    transition: color 0.2s;
-}
-
-.duplicates-checkbox:hover {
-    color: #ccc;
-}
-
-.duplicates-checkbox input {
+    justify-content: center;
+    z-index: 1000;
     display: none;
 }
 
-.checkmark {
+.export-dialog {
+    background-color: #222;
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+.export-dialog h3 {
+    color: #ffffff;
+    margin-bottom: 20px;
+    font-weight: 400;
+    font-size: 1.3rem;
+    text-align: center;
+}
+
+.export-options {
+    margin-bottom: 20px;
+}
+
+.export-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    color: #aaa;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.export-option input[type="radio"] {
     width: 18px;
     height: 18px;
-    border: 1px solid #444;
-    border-radius: 3px;
-    display: inline-block;
-    position: relative;
-    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.export-textarea {
+    width: 100%;
+    height: 150px;
+    padding: 12px;
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-size: 0.9rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    resize: none;
+    margin-bottom: 20px;
+}
+
+.export-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+
+/* Диалог редактирования названия */
+
+.edit-name-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    display: none;
+}
+
+.edit-name-dialog {
     background-color: #222;
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
 }
 
-.duplicates-checkbox input:checked+.checkmark {
-    background-color: #4a6fa5;
-    border-color: #5a7fb5;
+.edit-name-dialog h3 {
+    color: #ffffff;
+    margin-bottom: 20px;
+    font-weight: 400;
+    font-size: 1.3rem;
+    text-align: center;
 }
 
-.duplicates-checkbox input:checked+.checkmark::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 0.8rem;
+.edit-name-input {
+    width: 100%;
+    background-color: #2a2a2a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 12px;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.edit-name-input:focus {
+    outline: none;
+    border-color: #4a6fa5;
+    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+}
+
+.edit-name-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
 }
 
 .confirm-overlay {
@@ -551,6 +723,10 @@ h1 {
         gap: 10px;
         align-items: stretch;
     }
+    .settings-group {
+        flex-direction: column;
+        gap: 12px;
+    }
     .btn {
         padding: 8px 16px;
         font-size: 0.9rem;
@@ -566,10 +742,11 @@ h1 {
         gap: 10px;
         align-items: flex-start;
     }
-    .list-name-container {
+    .list-name-display {
         margin-left: 0;
         max-width: 100%;
         width: 100%;
+        text-align: left;
     }
     .list-item,
     .list-item-content,
@@ -590,8 +767,10 @@ h1 {
         gap: 15px;
         align-items: stretch;
     }
-    .duplicates-checkbox {
-        justify-content: center;
+    .list-tab {
+        max-width: 150px;
+        padding: 6px 10px;
+        font-size: 0.9rem;
     }
 }
 
@@ -618,16 +797,25 @@ h1 {
         max-height: 60vh;
     }
     .list-tab {
-        padding: 6px 10px;
+        padding: 4px 8px;
         font-size: 0.85rem;
         min-width: 70px;
-    }
-    .list-name-input {
-        font-size: 0.9rem;
-        padding: 6px 10px;
+        max-width: 120px;
     }
     .footer-controls {
         align-items: center;
+    }
+    .export-buttons,
+    .edit-name-buttons,
+    .confirm-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    .export-buttons .btn,
+    .edit-name-buttons .btn,
+    .confirm-buttons .btn {
+        width: 100%;
+        max-width: 200px;
     }
 }
 
