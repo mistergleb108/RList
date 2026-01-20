@@ -8,7 +8,6 @@ const deleteListBtn = document.getElementById('deleteListBtn');
 const checkDuplicatesCheckbox = document.getElementById('checkDuplicatesCheckbox');
 const extractIdCheckbox = document.getElementById('extractIdCheckbox');
 const itemCount = document.getElementById('itemCount');
-const currentListName = document.getElementById('currentListName');
 const listsContainer = document.getElementById('listsContainer');
 const notification = document.getElementById('notification');
 const notificationText = document.getElementById('notificationText');
@@ -44,11 +43,10 @@ let checkDuplicates = true;
 let extractId = true;
 let listContainerWrapper = document.querySelector('.list-container-wrapper');
 let currentEditingTabIndex = null;
+let isResizing = false;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Миграция из cookies в localStorage
     migrateFromCookies();
-
     loadFromStorage();
     loadSettings();
     loadListHeight();
@@ -66,23 +64,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 
     setupEventListeners();
+    setupResizeHandler();
 
-    if (listContainerWrapper) {
-        const resizeObserver = new ResizeObserver(() => {
-            saveListHeight();
-        });
-        resizeObserver.observe(listContainerWrapper);
-    }
+    window.addEventListener('resize', saveListHeight);
 });
 
-// Миграция данных из cookies в localStorage
 function migrateFromCookies() {
     try {
-        // Проверяем есть ли данные в cookies
         const cookies = document.cookie.split(';');
         let cookieData = null;
         let cookieSettings = null;
-
+        
         for (let cookie of cookies) {
             cookie = cookie.trim();
             if (cookie.startsWith('listsData=')) {
@@ -97,28 +89,23 @@ function migrateFromCookies() {
                 cookieSettings = { removeDuplicates: value === 'true' };
             }
         }
-
-        // Если есть данные в cookies и нет в localStorage, переносим
+        
         if (cookieData && !localStorage.getItem(STORAGE_KEY)) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(cookieData));
-            console.log('Данные мигрированы из cookies в localStorage');
         }
-
+        
         if (cookieSettings && !localStorage.getItem(SETTINGS_KEY)) {
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(cookieSettings));
-            console.log('Настройки мигрированы из cookies в localStorage');
         }
-
-        // Очищаем cookies
+        
         clearCookies();
-
+        
     } catch (e) {
         console.error('Ошибка миграции данных:', e);
     }
 }
 
 function clearCookies() {
-    // Очищаем все старые cookies
     const cookies = ['listsData', 'clipboardListData', 'removeDuplicatesState', 'listHeight'];
     cookies.forEach(cookieName => {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
@@ -136,7 +123,7 @@ function setupEventListeners() {
     newListBtn.addEventListener('click', handleNewList);
     exportMenuBtn.addEventListener('click', showExportDialog);
     deleteListBtn.addEventListener('click', showDeleteListDialog);
-
+    
     addFromClipboardBtn.addEventListener('click', addFromClipboard);
     addEmptyBtn.addEventListener('click', addEmptyItem);
 
@@ -152,12 +139,48 @@ function setupEventListeners() {
     cancelDeleteList.addEventListener('click', hideDeleteListDialog);
 }
 
+function setupResizeHandler() {
+    const resizeHandle = document.querySelector('.resize-handle');
+    if (!resizeHandle || !listContainerWrapper) return;
+
+    resizeHandle.addEventListener('mousedown', initResize);
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+}
+
+function initResize(e) {
+    e.preventDefault();
+    isResizing = true;
+    document.body.style.cursor = 'ns-resize';
+    listContainerWrapper.style.userSelect = 'none';
+}
+
+function handleResize(e) {
+    if (!isResizing || !listContainerWrapper) return;
+    
+    const containerRect = listContainerWrapper.getBoundingClientRect();
+    const newHeight = e.clientY - containerRect.top;
+    
+    if (newHeight >= 150 && newHeight <= window.innerHeight * 0.9) {
+        listContainerWrapper.style.height = newHeight + 'px';
+    }
+}
+
+function stopResize() {
+    if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        listContainerWrapper.style.userSelect = '';
+        saveListHeight();
+    }
+}
+
 function loadListHeight() {
     try {
         const height = localStorage.getItem(LIST_HEIGHT_KEY);
         if (height && listContainerWrapper) {
             const heightNum = parseInt(height);
-            if (!isNaN(heightNum) && heightNum > 0) {
+            if (!isNaN(heightNum) && heightNum >= 150) {
                 listContainerWrapper.style.height = heightNum + 'px';
             }
         }
@@ -184,11 +207,10 @@ function loadSettings() {
             const parsed = JSON.parse(settings);
             checkDuplicates = parsed.checkDuplicates !== undefined ? parsed.checkDuplicates : true;
             extractId = parsed.extractId !== undefined ? parsed.extractId : true;
-
+            
             checkDuplicatesCheckbox.checked = checkDuplicates;
             extractIdCheckbox.checked = extractId;
         } else {
-            // Значения по умолчанию
             checkDuplicates = true;
             extractId = true;
             checkDuplicatesCheckbox.checked = true;
@@ -241,7 +263,6 @@ function loadFromStorage() {
         const data = localStorage.getItem(STORAGE_KEY);
         if (data) {
             lists = JSON.parse(data);
-            // Проверяем структуру данных
             if (!Array.isArray(lists)) {
                 console.warn('Некорректная структура данных, сброс к начальному состоянию');
                 lists = [];
@@ -264,9 +285,8 @@ function saveToStorage() {
             localStorage.setItem(STORAGE_KEY, data);
         } catch (e) {
             console.error('Ошибка сохранения данных в localStorage:', e);
-            // Попробуем сохранить в cookies как запасной вариант (только для небольших данных)
             try {
-                const smallData = encodeURIComponent(JSON.stringify(lists.slice(-5))); // Сохраняем только последние 5 списков
+                const smallData = encodeURIComponent(JSON.stringify(lists.slice(-5)));
                 const expirationDate = new Date();
                 expirationDate.setDate(expirationDate.getDate() + 30);
                 document.cookie = `listsData=${smallData}; expires=${expirationDate.toUTCString()}; path=/`;
@@ -311,9 +331,8 @@ function renderListTabs() {
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-tab-btn';
         editBtn.title = 'Редактировать название';
-        editBtn.innerHTML = '✏️';
-
-        // Предотвращаем всплытие события при клике на кнопку редактирования
+        editBtn.innerHTML = '✎';
+        
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             showEditNameDialog(index);
@@ -321,7 +340,7 @@ function renderListTabs() {
 
         tab.appendChild(nameSpan);
         tab.appendChild(editBtn);
-
+        
         tab.addEventListener('click', () => switchToList(index));
 
         listsContainer.appendChild(tab);
@@ -348,9 +367,6 @@ function saveListName() {
             lists[currentEditingTabIndex].name = newName;
             saveToStorage();
             renderListTabs();
-            if (currentEditingTabIndex === currentListIndex) {
-                currentListName.textContent = newName;
-            }
             showNotification('Название сохранено');
         }
     }
@@ -360,8 +376,6 @@ function saveListName() {
 function switchToList(index) {
     if (index >= 0 && index < lists.length) {
         currentListIndex = index;
-        const list = lists[index];
-        currentListName.textContent = list.name || `Список ${index + 1}`;
         renderListTabs();
         renderList();
         updateButtonsState();
@@ -403,7 +417,7 @@ function cleanRutubeId(text) {
     if (!extractId) {
         return text;
     }
-
+    
     const rutubeId = extractRutubeId(text);
     return rutubeId ? rutubeId : text;
 }
@@ -430,7 +444,7 @@ async function addFromClipboard() {
 
             lines.forEach(line => {
                 const cleanedText = cleanRutubeId(line);
-
+                
                 if (checkDuplicates) {
                     const checkText = cleanedText.trim().toLowerCase();
                     const exists = currentList.items.some(item =>
@@ -463,7 +477,6 @@ async function addFromClipboard() {
             showNotification('Буфер обмена пуст');
         }
     } catch (err) {
-        // Fallback для браузеров без Clipboard API
         const userInput = prompt('Вставьте текст из буфера обмена (Ctrl+V):');
         if (userInput && userInput.trim()) {
             const lines = userInput.split('\n')
@@ -482,7 +495,7 @@ async function addFromClipboard() {
 
             lines.forEach(line => {
                 const cleanedText = cleanRutubeId(line);
-
+                
                 if (checkDuplicates) {
                     const checkText = cleanedText.trim().toLowerCase();
                     const exists = currentList.items.some(item =>
@@ -548,7 +561,7 @@ function addEmptyItem() {
     saveCurrentList();
     renderList();
     updateButtonsState();
-
+    
     setTimeout(() => {
         focusLastInput();
     }, 50);
@@ -571,7 +584,7 @@ function updateItem(id, newText) {
     const item = currentList.items.find(item => item.id === id);
     if (item) {
         const cleanedText = cleanRutubeId(newText);
-
+        
         if (checkDuplicates) {
             const checkText = cleanedText.trim().toLowerCase();
             const duplicate = currentList.items.find(otherItem =>
@@ -580,7 +593,6 @@ function updateItem(id, newText) {
             );
 
             if (duplicate) {
-                // Удаляем текущий элемент, так как он дублирует существующий
                 deleteItem(id);
                 return false;
             }
@@ -613,7 +625,7 @@ function updateExportText() {
     if (!currentList) return;
 
     const itemsText = currentList.items.map(item => item.text).join('\n');
-
+    
     if (exportWithNameRadio.checked) {
         exportTextarea.value = `${currentList.name}\n${itemsText}`;
     } else {
