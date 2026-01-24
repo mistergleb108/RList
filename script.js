@@ -2,9 +2,7 @@ const itemList = document.getElementById('itemList');
 const addFromClipboardBtn = document.getElementById('addFromClipboard');
 const addEmptyBtn = document.getElementById('addEmpty');
 const clearListBtn = document.getElementById('clearList');
-const newListBtn = document.getElementById('newListBtn');
 const exportMenuBtn = document.getElementById('exportMenuBtn');
-const deleteListBtn = document.getElementById('deleteListBtn');
 const checkDuplicatesCheckbox = document.getElementById('checkDuplicatesCheckbox');
 const extractIdCheckbox = document.getElementById('extractIdCheckbox');
 const itemCount = document.getElementById('itemCount');
@@ -19,10 +17,11 @@ const cancelExportBtn = document.getElementById('cancelExportBtn');
 const exportWithoutNameRadio = document.getElementById('exportWithoutName');
 const exportWithNameRadio = document.getElementById('exportWithName');
 
-const editNameOverlay = document.getElementById('editNameOverlay');
-const editNameInput = document.getElementById('editNameInput');
-const saveNameBtn = document.getElementById('saveNameBtn');
-const cancelEditNameBtn = document.getElementById('cancelEditNameBtn');
+const createListOverlay = document.getElementById('createListOverlay');
+const createListTitle = document.getElementById('createListTitle');
+const createListInput = document.getElementById('createListInput');
+const createListConfirm = document.getElementById('createListConfirm');
+const createListCancel = document.getElementById('createListCancel');
 
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmClearBtn = document.getElementById('confirmClear');
@@ -44,6 +43,7 @@ let extractId = true;
 let listContainerWrapper = document.querySelector('.list-container-wrapper');
 let currentEditingTabIndex = null;
 let isResizing = false;
+let creatingNewList = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     migrateFromCookies();
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadListHeight();
 
     if (lists.length === 0) {
-        createNewList();
+        createDefaultList();
     }
 
     renderListTabs();
@@ -67,6 +67,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setupResizeHandler();
 
     window.addEventListener('resize', saveListHeight);
+    
+    updateLogo();
+    window.addEventListener('resize', updateLogo);
 });
 
 function migrateFromCookies() {
@@ -120,9 +123,7 @@ function setupEventListeners() {
     checkDuplicatesCheckbox.addEventListener('change', toggleCheckDuplicates);
     extractIdCheckbox.addEventListener('change', toggleExtractId);
 
-    newListBtn.addEventListener('click', handleNewList);
     exportMenuBtn.addEventListener('click', showExportDialog);
-    deleteListBtn.addEventListener('click', showDeleteListDialog);
     
     addFromClipboardBtn.addEventListener('click', addFromClipboard);
     addEmptyBtn.addEventListener('click', addEmptyItem);
@@ -132,8 +133,8 @@ function setupEventListeners() {
     copyExportBtn.addEventListener('click', copyExportToClipboard);
     cancelExportBtn.addEventListener('click', hideExportDialog);
 
-    saveNameBtn.addEventListener('click', saveListName);
-    cancelEditNameBtn.addEventListener('click', hideEditNameDialog);
+    createListConfirm.addEventListener('click', confirmCreateList);
+    createListCancel.addEventListener('click', hideCreateListDialog);
 
     confirmDeleteList.addEventListener('click', performDeleteList);
     cancelDeleteList.addEventListener('click', hideDeleteListDialog);
@@ -297,10 +298,10 @@ function saveToStorage() {
     }, 500);
 }
 
-function createNewList() {
+function createDefaultList() {
     const newList = {
         id: Date.now() + Math.random(),
-        name: `Список ${lists.length + 1}`,
+        name: 'Мой список',
         items: []
     };
 
@@ -309,11 +310,42 @@ function createNewList() {
     return lists.length - 1;
 }
 
-function handleNewList() {
-    const newIndex = createNewList();
-    renderListTabs();
-    switchToList(newIndex);
-    showNotification('Создан новый список');
+function showCreateListDialog() {
+    creatingNewList = true;
+    createListTitle.textContent = 'Новый список';
+    createListInput.value = 'Новый список';
+    createListOverlay.style.display = 'flex';
+    createListInput.focus();
+    createListInput.select();
+}
+
+function hideCreateListDialog() {
+    createListOverlay.style.display = 'none';
+    creatingNewList = false;
+}
+
+function confirmCreateList() {
+    const newName = createListInput.value.trim();
+    if (newName) {
+        if (creatingNewList) {
+            const newList = {
+                id: Date.now() + Math.random(),
+                name: newName,
+                items: []
+            };
+            lists.push(newList);
+            saveToStorage();
+            renderListTabs();
+            switchToList(lists.length - 1);
+            showNotification('Создан новый список');
+        } else if (currentEditingTabIndex !== null) {
+            lists[currentEditingTabIndex].name = newName;
+            saveToStorage();
+            renderListTabs();
+            showNotification('Название сохранено');
+        }
+    }
+    hideCreateListDialog();
 }
 
 function renderListTabs() {
@@ -323,54 +355,83 @@ function renderListTabs() {
         const tab = document.createElement('div');
         tab.className = `list-tab ${index === currentListIndex ? 'active' : ''}`;
         tab.dataset.index = index;
+        tab.dataset.listId = list.id;
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'list-tab-name';
         nameSpan.textContent = list.name || `Список ${index + 1}`;
 
+        // Кнопка вставить
+        const pasteBtn = document.createElement('button');
+        pasteBtn.className = 'tab-action-btn';
+        pasteBtn.title = 'Вставить из буфера';
+        pasteBtn.innerHTML = '📋';
+        pasteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchToList(index);
+            addFromClipboard();
+        });
+
+        // Кнопка редактировать
         const editBtn = document.createElement('button');
-        editBtn.className = 'edit-tab-btn';
+        editBtn.className = 'tab-action-btn';
         editBtn.title = 'Редактировать название';
         editBtn.innerHTML = '✎';
-        
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            showEditNameDialog(index);
+            editListName(index);
+        });
+
+        // Кнопка удалить
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'tab-action-btn';
+        deleteBtn.title = 'Удалить список';
+        deleteBtn.innerHTML = '✖';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteList(index);
         });
 
         tab.appendChild(nameSpan);
+        tab.appendChild(pasteBtn);
         tab.appendChild(editBtn);
+        tab.appendChild(deleteBtn);
         
         tab.addEventListener('click', () => switchToList(index));
 
         listsContainer.appendChild(tab);
     });
+
+    // Кнопка создания нового списка
+    const addButton = document.createElement('div');
+    addButton.className = 'add-list-btn';
+    addButton.title = 'Добавить список';
+    addButton.innerHTML = '+';
+    addButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showCreateListDialog();
+    });
+    
+    listsContainer.appendChild(addButton);
 }
 
-function showEditNameDialog(index) {
+function editListName(index) {
     currentEditingTabIndex = index;
-    editNameInput.value = lists[index].name || `Список ${index + 1}`;
-    editNameOverlay.style.display = 'flex';
-    editNameInput.focus();
-    editNameInput.select();
+    createListTitle.textContent = 'Редактировать название';
+    createListInput.value = lists[index].name || `Список ${index + 1}`;
+    createListOverlay.style.display = 'flex';
+    createListInput.focus();
+    createListInput.select();
 }
 
-function hideEditNameDialog() {
-    editNameOverlay.style.display = 'none';
-    currentEditingTabIndex = null;
-}
-
-function saveListName() {
-    if (currentEditingTabIndex !== null) {
-        const newName = editNameInput.value.trim();
-        if (newName) {
-            lists[currentEditingTabIndex].name = newName;
-            saveToStorage();
-            renderListTabs();
-            showNotification('Название сохранено');
-        }
+function deleteList(index) {
+    if (lists.length <= 1) {
+        showNotification('Нельзя удалить последний список');
+        return;
     }
-    hideEditNameDialog();
+    
+    currentEditingTabIndex = index;
+    confirmDeleteListOverlay.style.display = 'flex';
 }
 
 function switchToList(index) {
@@ -395,7 +456,6 @@ function updateButtonsState() {
     const hasItems = currentList && currentList.items && currentList.items.length > 0;
     clearListBtn.disabled = !hasItems;
     exportMenuBtn.disabled = !hasItems;
-    deleteListBtn.disabled = lists.length <= 1;
 }
 
 function isRutubeId(text) {
@@ -405,12 +465,23 @@ function isRutubeId(text) {
 
 function extractRutubeId(text) {
     const trimmedText = text.trim();
-    if (isRutubeId(trimmedText)) {
+    
+    const rutubeIdRegex = /^[0-9a-f]{32}$/i;
+    if (rutubeIdRegex.test(trimmedText)) {
         return trimmedText;
     }
 
     const idMatch = trimmedText.match(/[0-9a-f]{32}/i);
-    return idMatch ? idMatch[0] : null;
+    if (idMatch) {
+        return idMatch[0];
+    }
+
+    const channelMatch = trimmedText.match(/rutube\.ru\/channel\/(\d+)/i);
+    if (channelMatch) {
+        return channelMatch[1];
+    }
+
+    return null;
 }
 
 function cleanRutubeId(text) {
@@ -668,22 +739,17 @@ function performClearList() {
     }
 }
 
-function showDeleteListDialog() {
-    if (lists.length > 1) {
-        confirmDeleteListOverlay.style.display = 'flex';
-    }
-}
-
 function hideDeleteListDialog() {
     confirmDeleteListOverlay.style.display = 'none';
 }
 
 function performDeleteList() {
-    if (lists.length > 1) {
-        lists.splice(currentListIndex, 1);
+    if (lists.length > 1 && currentEditingTabIndex !== null) {
+        lists.splice(currentEditingTabIndex, 1);
         if (currentListIndex >= lists.length) {
             currentListIndex = lists.length - 1;
         }
+        currentEditingTabIndex = null;
         saveToStorage();
         renderListTabs();
         switchToList(currentListIndex);
@@ -804,3 +870,21 @@ function renderList() {
         itemList.appendChild(listItem);
     });
 }
+
+function updateLogo() {
+    const logoLink = document.querySelector('.logo-link');
+    if (!logoLink) return;
+    
+    const logoImg = logoLink.querySelector('img');
+    if (!logoImg) return;
+    
+    const width = window.innerWidth;
+    
+    if (width >= 1101) {
+        logoImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAC9SURBVGhD7dhBCoMwEEDR6DI38TylXedo7j1Qj2NXQplu0tT2d+A/XI0gfAxBM9VaS2ZzHGRjAM0AmgE0A2gG0Kaeb6F1XePoJ1prcfQi/RswgGYAbTBgL/NZV3z0mwa30b3Mt+slDMds2xZHB7fRDPiA+yHe6MMHfMgAmgE0A2gG0AygGUAzgGYAzQBa+oDBc6Fnw//jwbIsYeK5UAYnLKHvcQllYAAtfUDXLvTP0r8BA2gG0AygGUAzgPYAPoY012vSGAAAAAAASUVORK5CYII=";
+    } else {
+        logoImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABACAYAAADS1n9/AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAJJSURBVHhe7do9coMwEAXgjUtzDTeuOIjKTKhd03MBt+qpXeOag1C50TVcO03EiBWxIcYE8943o5kgfobiaSU5fGy325sQrI3uICwMADgGABwDAI4BAMcAgGMAwDEA4BgAcAwAOAYA3If+X8DpdAoPF+dwOOguegIrADgGABwDAI4BAMcAgBscgJtsXt5ofoO3gTfZSPb1qbsndT6fdVeE28BpcdiBYwDALSoAl8ulbTSPRQWA5vf2Abher23r8+j8GHmed57X15qm0beJjHiPpmmiZ/qW57m+XKqqiq7zraoqfXnk7QNAz1lVAMIRNmS0DeVHvrVWnHOSJMmvLU3Tzr1D38OP/N1uJ0VRRM91zom1tn2WH/nGGKnrOrq+rmsxxjysBKsKAI23qgAkSSLyM+rC41A4x+rjoaPV61sT6DWAH5F/FVaGV1hVAGi81QUgnAcf8SNLz7VDK0FZlpIkiRRFoU89Ta8JnHOd81mWRXN92MK1QZZlnXtDqwsAjQMdgL5KkaZpb/+crLWd3UBZlvoS7gJoGgzAAt0b+VNjAMAt6oOQ4/HY/r3f7zvnPP1BSLha75u39fmmado9dd/19+R5LtZa3S0iIs65zq+AQ3YRXvge4ftpRVFEVaGqKjHGdPq8uq7v7gCEFYDevgLQc1gBwDEA4BgAcAwAuMGLQO3VH25yETgPVgBwDAC4P08B/4VTwLRYAcAxAOAYAHAMADgGAFy0CyAsrADgGABwDAA4BgAcAwCOAQDHAIBjAMAxAOAYAHAMALhvFx53Eg7LbC0AAAAASUVORK5CYII=";
+    }
+}
+
+setTimeout(updateLogo, 100);
